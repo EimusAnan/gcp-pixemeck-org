@@ -54,3 +54,8 @@ variable "tfe_workspace_id" {
   type        = string
   description = "Terraform Enterprise Workspace ID"
 }
+
+variable "billing_account_id" {
+  type        = string
+  description = "GCP Billing Account ID"
+}
