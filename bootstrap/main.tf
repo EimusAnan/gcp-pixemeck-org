@@ -1,8 +1,15 @@
 # Enable required APIs
+
+resource "google_folder" "bootstrap" {
+  display_name        = "Bootstrap"
+  parent              = "organizations/${var.org_id}"
+  deletion_protection = false
+}
+
 resource "google_project" "bootstrap" {
   name                = "bootstrap"
   project_id          = var.project_id
-  org_id              = var.org_id
+  folder_id           = google_folder.bootstrap.name
   auto_create_network = false
   deletion_policy     = "DELETE"
   billing_account     = var.billing_account_id

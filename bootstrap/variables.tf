@@ -59,3 +59,8 @@ variable "billing_account_id" {
   type        = string
   description = "GCP Billing Account ID"
 }
+
+variable "folder_id" {
+  type        = string
+  description = "GCP Billing Account ID"
+}

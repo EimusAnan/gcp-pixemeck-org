@@ -1,3 +1,8 @@
+output "folder_id" {
+  value       = google_folder.bootstrap.name
+  description = "Bootstrap folder id"
+}
+
 output "workload_identity_pool_resource_name" {
   value       = google_iam_workload_identity_pool.terraform_pool.name
   description = "Resource name of the Workload Identity Pool"
