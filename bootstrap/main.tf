@@ -1,11 +1,13 @@
 # Enable required APIs
 
+# An organization-level folder for bootstrapping the system.
 resource "google_folder" "bootstrap" {
   display_name        = "Bootstrap"
   parent              = "organizations/${var.org_id}"
   deletion_protection = false
 }
 
+# Bootstrap project to host WIF Pool/Provider and SA for Control Plane work.
 resource "google_project" "bootstrap" {
   name                = "bootstrap"
   project_id          = var.project_id
@@ -13,8 +15,11 @@ resource "google_project" "bootstrap" {
   auto_create_network = false
   deletion_policy     = "DELETE"
   billing_account     = var.billing_account_id
+
+  depends_on = [google_folder.bootstrap]
 }
 
+# Enable the basic APIs required to manage the base infrastructure 
 resource "google_project_service" "required_apis" {
   for_each = toset([
     "iamcredentials.googleapis.com",
@@ -25,9 +30,11 @@ resource "google_project_service" "required_apis" {
 
   service            = each.value
   disable_on_destroy = false
+
+  depends_on = [google_project.bootstrap]
 }
 
-# Create Workload Identity Pool
+# Create Workload Identity Pool for TFE Authenication
 resource "google_iam_workload_identity_pool" "terraform_pool" {
   workload_identity_pool_id = var.pool_id
   display_name              = "Terraform Enterprise"
@@ -52,37 +59,40 @@ resource "google_iam_workload_identity_pool_provider" "terraform_provider" {
     "attribute.terraform_organization_name" = "assertion.terraform_organization_name"
   }
 
-  attribute_condition = "assertion.terraform_organization_name==\"${var.terraform_org_name}\""
+  attribute_condition = "assertion.terraform_workspace_id==\"${var.tfe_workspace_id}\""
 
   oidc {
     issuer_uri = var.issuer_uri
   }
+
+  depends_on = [google_iam_workload_identity_pool.terraform_pool]
 }
 
-# Create Service Account
+# Create Terraform Service Account
 resource "google_service_account" "terraform" {
   account_id   = var.service_account_name
   display_name = "Terraform Enterprise Service Account"
   description  = "Service account for Terraform Enterprise WIF"
 }
 
-# Grant IAM Roles to Service Account
-resource "google_project_iam_member" "terraform_roles" {
+# Grant organization-level IAM Roles to Terraform Service Account
+resource "google_organization_iam_member" "terraform_roles" {
   for_each = toset(var.sa_roles)
 
-  project = var.project_id
-  role    = each.value
-  member  = "serviceAccount:${google_service_account.terraform.email}"
+  # project = var.project_id
+  org_id = var.org_id
+  role   = each.value
+  member = "serviceAccount:${google_service_account.terraform.email}"
 }
 
-# Create IAM Policy Binding - Workload Identity Pool can impersonate SA
+# Create IAM Policy Binding - Workload Identity Pool can impersonate TSA
 resource "google_service_account_iam_member" "workload_identity_user" {
   service_account_id = google_service_account.terraform.name
   role               = "roles/iam.workloadIdentityUser"
 
   member = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.terraform_pool.name}/attribute.terraform_workspace_id/${var.tfe_workspace_id}"
 }
-
+# Grant organization-level folderAdmin to the terraform service account
 resource "google_organization_iam_binding" "folder_admin_binding" {
   org_id = var.org_id
   role   = "roles/resourcemanager.folderAdmin"

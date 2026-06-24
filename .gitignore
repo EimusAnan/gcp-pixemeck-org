@@ -2,8 +2,8 @@
 .terraform/
 
 # .tfstate files: In the case of this bootsrap, I include the statefile because this is a one-time execution.
-# *.tfstate
-# *.tfstate.*
+*.tfstate
+*.tfstate.*
 
 # Crash log files
 crash.log
@@ -44,3 +44,5 @@ terraform.rc
 # Uncomment the line below if you want to ignore planout files.
 # planout
 bootstrap/.terraform.lock.hcl
+bootstrap/terraform.tfstate.backup
+bootstrap/terraform.tfstate
