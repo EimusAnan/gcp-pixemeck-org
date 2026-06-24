@@ -1,5 +1,13 @@
-# Enable required APIs
+# terraform {
+#   cloud {
+#     hostname     = "app.terraform.io"
+#     organization = "pixemeck-org"
 
+#     workspaces {
+#       name = "bootstrap"
+#     }
+#   }
+# }
 # An organization-level folder for bootstrapping the system.
 resource "google_folder" "bootstrap" {
   display_name        = "Bootstrap"
@@ -75,13 +83,17 @@ resource "google_service_account" "terraform" {
   description  = "Service account for Terraform Enterprise WIF"
 }
 
-# Grant organization-level IAM Roles to Terraform Service Account
+# Grant organization-level storage.admin role to TSA
 resource "google_organization_iam_member" "terraform_roles" {
-  for_each = toset(var.sa_roles)
-
-  # project = var.project_id
   org_id = var.org_id
-  role   = each.value
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.terraform.email}"
+}
+
+# Grant organization-level resourcemanager.folderAdmin to the tTSA
+resource "google_organization_iam_member" "folder_admin" {
+  org_id = var.org_id
+  role   = "roles/resourcemanager.folderAdmin"
   member = "serviceAccount:${google_service_account.terraform.email}"
 }
 
@@ -91,13 +103,4 @@ resource "google_service_account_iam_member" "workload_identity_user" {
   role               = "roles/iam.workloadIdentityUser"
 
   member = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.terraform_pool.name}/attribute.terraform_workspace_id/${var.tfe_workspace_id}"
-}
-# Grant organization-level folderAdmin to the terraform service account
-resource "google_organization_iam_binding" "folder_admin_binding" {
-  org_id = var.org_id
-  role   = "roles/resourcemanager.folderAdmin"
-
-  members = [
-    "serviceAccount:${google_service_account.terraform.email}",
-  ]
 }
